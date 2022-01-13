@@ -37,7 +37,7 @@ const App: () => React$Node = () => {
   const [tripId, setTripId] = useState();
   const [loadedUserId, setLoadedUserId] = useState();
   const [trackingStatus, setTrackingStatus] = useState();
-  const [tripTrackingStatus, setTripTrackingStatus] = useState('Unknown');
+  const [tripTrackingStatus, setTripTrackingStatus] = useState('-');
   const [eventStatus, setEventStatus] = useState('Unknown');
   const [listenerStatus, setListenerStatus] = useState('Unknown');
   const [subscriptionStatus, setSubscriptionStatus] = useState('-');
@@ -202,14 +202,28 @@ const App: () => React$Node = () => {
 
   const onToggleTracking = () => {
     Roam.isLocationTracking(status => {
-      if (status === 'GRANTED') {
-        Roam.stopPublishing();
+      console.log(trackingStatus);
+      if (trackingStatus === 'GRANTED') {
         Roam.stopTracking();
+        Roam.setForegroundNotification(
+          false,
+          'RoamExample',
+          'App is fetching location.',
+          'drawable/ic_launcher',
+          'com.roamexample.MainActivity',
+        );
         setTrackingStatus('DENIED');
       } else {
-        Roam.publishAndSave(null);
         if (Platform.OS === 'android') {
-          Roam.startTrackingTimeInterval(2, 'HIGH');
+          Roam.setForegroundNotification(
+            true,
+            'RoamExample',
+            'App is fetching location.',
+            'drawable/ic_launcher',
+            'com.roamexample.MainActivity',
+          );
+          console.log('trying to start tracking');
+          Roam.startTrackingTimeInterval(2, Roam.DesiredAccuracy.HIGH);
         } else {
           Roam.startTrackingCustom(
             true,
@@ -315,10 +329,6 @@ const App: () => React$Node = () => {
   };
 
   const onListenUpdates = () => {
-    if (subscriptionStatus !== 'Enabled') {
-      Alert.alert('Error', 'Please, subscribe location before');
-      return;
-    }
     Roam.startListener('location', location => {
       console.log('Location', location);
       setUpdateCounter(count => count + 1);
@@ -326,8 +336,52 @@ const App: () => React$Node = () => {
     setListenUpdatesStatus('Enabled');
   };
 
+  const onTripsReset = () => {
+    const handleGetActiveTripCallback = async success => {
+      console.log(success.activeTrips);
+      const trips = Object.values(success.activeTrips);
+      console.log('RoamSDK: activeTrips', {
+        trips: trips.map(trip => trip.tripId),
+      });
+      for (var activeTrip in trips) {
+        console.log(activeTrip);
+        var element = trips[activeTrip];
+        console.log(element.tripId);
+        return new Promise(_resolve => {
+          const handleLoadTripCallback = async () => {
+            Roam.unSubscribeTripStatus(element.tripId);
+            roam.deleteTrip(element.tripId);
+          };
+          const handleLoadTripError = () => {
+            roam.deleteTrip(element.tripId);
+          };
+          Roam.stopTrip(
+            element.tripId,
+            handleLoadTripCallback,
+            handleLoadTripError,
+          );
+        });
+      }
+      setTripListenUpdatesStatus('-');
+      setTripSubscriptionStatus('-');
+      setTripTrackingStatus('-');
+      setTripId('-');
+      setTripUpdateCounter(0);
+      Roam.stopListener('trip_status');
+    };
+
+    const handleGetActiveTripError = error => {
+      console.log(error);
+    };
+    Roam.activeTrips(
+      true,
+      handleGetActiveTripCallback,
+      handleGetActiveTripError,
+    );
+  };
+
   const onListenTripUpdates = () => {
-    if (subscriptionStatus !== 'Enabled') {
+    if (tripSubscriptionStatus !== 'Enabled') {
       Alert.alert('Error', 'Please, subscribe trip before');
       return;
     }
@@ -349,21 +403,6 @@ const App: () => React$Node = () => {
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           style={styles.scrollView}>
-          <View style={styles.sectionContainer}>
-            <Text style={styles.title}>User</Text>
-            <View style={styles.row}>
-              <Button onPress={onCreateUserPress}>Create test user</Button>
-              <TextField>{userId}</TextField>
-            </View>
-            <View style={styles.row}>
-              <Button title="" onPress={onLoadTestUser}>
-                Load test user
-              </Button>
-              <TextField>
-                {typeof loadedUserId === 'undefined' ? 'Empty' : loadedUserId}
-              </TextField>
-            </View>
-          </View>
           <View style={styles.sectionContainer}>
             <View style={[styles.row, styles.actionRow]}>
               <Text style={styles.title}>Permissions</Text>
@@ -400,19 +439,7 @@ const App: () => React$Node = () => {
           <View style={styles.sectionContainer}>
             <Text style={styles.title}>Actions</Text>
             <View style={styles.row}>
-              <Button onPress={enableEvents}>Enable Events</Button>
-              <TextField>{eventStatus}</TextField>
-            </View>
-            <View style={styles.row}>
-              <Button onPress={enableListeners}>Enable Listeners</Button>
-              <TextField>{listenerStatus}</TextField>
-            </View>
-            <View style={styles.row}>
-              <Button onPress={onSubscribeLocation}>Subscribe Location</Button>
-              <TextField>{subscriptionStatus}</TextField>
-            </View>
-            <View style={styles.row}>
-              <Button onPress={onListenUpdates}>Listen updates</Button>
+              <Button onPress={onListenUpdates}>Listen Location</Button>
               <TextField>{listenUpdatesStatus}</TextField>
             </View>
             <View style={styles.row}>
@@ -426,7 +453,12 @@ const App: () => React$Node = () => {
             </Text>
           </View>
           <View style={styles.sectionContainer}>
-            <Text style={styles.title}>Trips</Text>
+            <View style={[styles.row, styles.actionRow]}>
+              <Text style={styles.title}>Trips</Text>
+              <Button type="action" onPress={onTripsReset}>
+                Flush old trips
+              </Button>
+            </View>
             <View style={styles.row}>
               <Button onPress={onCreateTripPress}>Create test trip</Button>
               <TextField>

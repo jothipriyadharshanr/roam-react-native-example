@@ -44,7 +44,7 @@ const createTestTrip = async () => {
       reject(error);
     };
 
-    Roam.createTrip(false, handleCreateTripCallback, handleCreateTripError);
+    Roam.createTrip(true, handleCreateTripCallback, handleCreateTripError);
   });
 };
 
@@ -99,12 +99,31 @@ const getTripSummary = async id => {
   });
 };
 
+const deleteTrip = async id => {
+  return new Promise((resolve, reject) => {
+    const handleGetTripSummaryCallback = async success => {
+      resolve(success);
+    };
+
+    const handleGetTripSummaryError = error => {
+      console.log(error);
+      reject(error);
+    };
+    Roam.deleteTrip(
+      id,
+      handleGetTripSummaryCallback,
+      handleGetTripSummaryError,
+    );
+  });
+};
+
 export const roam = {
   createTestUser,
   createTestTrip,
   loadTestUser,
   toggleTrip,
   getTripSummary,
+  deleteTrip,
   Configuration,
   ErrorCodes,
 };
