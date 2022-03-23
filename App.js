@@ -213,7 +213,7 @@ const App: () => React$Node = () => {
         } else {
           Roam.startTrackingCustom(
             true,
-            true,
+            false,
             Roam.ActivityType.FITNESS,
             Roam.DesiredAccuracyIOS.BEST,
             true,
