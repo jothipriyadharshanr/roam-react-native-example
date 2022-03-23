@@ -6,6 +6,7 @@
 
 import AsyncStorage from '@react-native-community/async-storage';
 import DeviceInfo from 'react-native-device-info';
+import {Notifications} from 'react-native-notifications';
 import React, {
   useState,
   useEffect,
@@ -149,6 +150,9 @@ const App: () => React$Node = () => {
   };
 
   const onRequestPermission = type => {
+    if (Platform.OS === 'ios') {
+      Notifications.registerRemoteNotifications();
+    }
     switch (type) {
       case 'location':
         Roam.requestLocationPermission();
@@ -320,6 +324,14 @@ const App: () => React$Node = () => {
       return;
     }
     Roam.startListener('location', location => {
+      if (Platform.OS === 'ios') {
+        let localNotification = Notifications.postLocalNotification({
+          body: 'Location from Roam Example',
+          title: 'Roam Example',
+          sound: 'chime.aiff',
+          silent: false,
+        });
+      }
       console.log('Location', location);
       setUpdateCounter(count => count + 1);
     });
